@@ -1,4 +1,4 @@
-import setup
+from setup import *
 
 # torch.set_printoptions(threshold=5, precision=3, sci_mode=False, linewidth=200)
 
@@ -6,101 +6,79 @@ import setup
 # print(x)
 
 
-msft = yf.Ticker("MSFT")
+# msft = yf.Ticker("MSFT")
 
-# get historical market data
-hist = msft.history(period="1d")
-print(hist)
+# # get historical market data
+# hist = msft.history(period="1d")
+# print(hist)
 
-# show meta information about the history (requires history() to be called first)
-msft.history_metadata
-# show financials:
-# - income statement
-income = msft.income_stmt
-msft.quarterly_income_stmt
-# - balance sheet
-msft.balance_sheet
-msft.quarterly_balance_sheet
-# - cash flow statement
-msft.cashflow
-msft.quarterly_cashflow
+# # show meta information about the history (requires history() to be called first)
+# msft.history_metadata
+# # show financials:
+# # - income statement
+# income = msft.income_stmt
+# msft.quarterly_income_stmt
+# # - balance sheet
+# msft.balance_sheet
+# msft.quarterly_balance_sheet
+# # - cash flow statement
+# msft.cashflow
+# msft.quarterly_cashflow
 
-# show holders
-msft.major_holders
-msft.institutional_holders
-msft.mutualfund_holders
+# # show holders
+# msft.major_holders
+# msft.institutional_holders
+# msft.mutualfund_holders
 
 # Show future and historic earnings dates, returns at most next 4 quarters and last 8 quarters by default.
 # Note: If more are needed use msft.get_earnings_dates(limit=XX) with increased limit argument.
 #msft.earnings_dates
 # see `Ticker.get_income_stmt()` for more options
 
-def get_inp_data():
-    ticker_symbol = 'AAPL'
+def get_inp_data_tickers(train_dist, label_delay, tickers = ['AAPL']):
+  X = np.zeros((1, train_dist, 3))
+  Y = np.zeros((1, 1, 3))
 
-    # Define the start and end dates for your data retrieval
-    start_date = "2010-04-28"
-    end_date = "2019-05-29" #(datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=day_diff)).strftime('%Y-%m-%d')
+  for ticker in tickers:
+    df = yf.download(ticker, period='max', threads=True)
+    vals = np.array(df[['Low', 'High', 'Open', 'Close', 'Adj Close']].values)
+    #print(vals)
+    adj = 100*(100*vals[:,4]-100*vals[:,3])/(100*vals[:,3])
+    change = 100*(100*vals[:,3]-100*vals[:,2])/(100*vals[:,2])
+    spread = 100*(100*vals[:,1]-100*vals[:,0])/(100*vals[:,0])
 
-    # Retrieve historical data using yfinance
-    data = yf.download(ticker_symbol, start=start_date, end=end_date)
-
-
-    # Calculate the date for one month from now
-    one_month_later_start = "2010-05-29"
-    one_month_later_end = "2019-06-29"
-
-    # Extract relevant columns and create a DataFrame
-    target_data = data[['Low', 'High']]
-
-    print(target_data)
-
-    #['Close', 'Low', 'High', 'Open', 'Adj Close']]
-    #print(data)
-
-    # Retrieve the closing price one month ahead
-    closing_price_one_month_later = yf.download(ticker_symbol, start=one_month_later_start, end=one_month_later_end)
-
-    print(closing_price_one_month_later)
-    closing_price_one_month_later = closing_price_one_month_later['Close'].values
-
-    #print(closing_price_one_month_later)
-
-    Y = np.where((np.array(closing_price_one_month_later) - np.array(data['Close'].values)) <= 0, 0.0, 1.0)
-    #Y = np.array(closing_price_one_month_later)
-    #NORMAL ABOVE
-    Y = Y.reshape(Y.shape[0],1)
-    X = np.array(target_data.values)
+    #FEATURES ARE
+    '''
+    adj -> % change in Adj Close over Close
+    change -> % change in Close over Open
+    spread -> % change in High over Low
+    '''
 
 
 
-    print(X.shape,Y.shape)
-    return X, Y
+    #print(adj.shape, change.shape, spread)
+    x = np.vstack((adj, change, spread)).T
 
+    #print(x.shape)
+    #print(x.shape, x)
 
-def getTimeShiftedInpData(shift_type, shift_amount):
-  """
-  Shift input data over by time amount
-  """
-  pass
+    samples = (x.shape[0] // (train_dist + label_delay))**2
+    
+    for _ in range(samples):
+      ind = random.randint(0, x.shape[0]-train_dist-label_delay-1)
+      sample = x[ind:ind+train_dist,:]
+      label = x[ind+train_dist+label_delay,:]
 
-def getDataFromNames(input_groups: list, output_groups: list):
-  """
-  Given the input and output groups, construct the data
-  """
-  pass
-  return X,Y
+      sample = sample.reshape((1,sample.shape[0], sample.shape[1]))
+      label = label.reshape((1,1, label.shape[0]))
 
-def splitData(X, Y, training_ratio=0.8):
-  """
-  splits input data into training and testing
-  """
-  X_train, X_test, Y_train, Y_test = train_test_split(X, Y, train_size=training_ratio, shuffle=True)
+      #print(sample.shape, sample)
+      X = np.vstack([X, sample])
+      Y = np.vstack([Y, label])
 
-  X_val, garbage1, Y_val, garbage2 = train_test_split(X, Y, train_size=0.4, shuffle=True)
+  print('Fresh X: ', X.shape)
+  print('Fresh Y: ', Y.shape)
+  return X, Y
+#get_inp_data()
 
-  print(X_train.shape, Y_train.shape, X_test.shape, Y_test.shape)
-  return (X_train, Y_train), (X_test, Y_test), (X_val, Y_val)
-
-train_data, test_data, val_data = splitData(X, Y, 0.8)
 

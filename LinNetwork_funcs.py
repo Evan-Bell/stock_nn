@@ -1,4 +1,4 @@
-import setup
+from setup import *
 
 
 class SimpleNetwork(nn.Module):
@@ -8,7 +8,7 @@ class SimpleNetwork(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
 
-        self.Z1 = nn.Linear(input_size, output_size).double()
+        self.Z1 = nn.Linear(input_size, output_size).double().to(device)
         # self.F1 = nn.Tanh()
         # self.Z2 = nn.Linear(representation_size, output_size).double()
 

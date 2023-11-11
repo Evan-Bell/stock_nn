@@ -1,29 +1,45 @@
-import setup
-import get_data
-import handle_data
+from setup import *
+from get_data import *
+from handle_data import *
 
-import train
-import test_setup
+from test_setup import *
 
-import test_network_funcs
-import LinNetwork_funcs
-import training_funcs
+from test_network_funcs import * 
+from LinNetwork_funcs import * 
+from ConvNetwork import *
+from training_funcs import * 
 
-X,Y = get_inp_data()
-train_data, test_data, val_data = splitData(X, Y, 0.8)
-train_loader, val_loader, test_loader = creater_trainers(train_data, test_data, val_data)
 
 # check if running on CPU or GPU
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Initialize a simple autoencoder
-network = UpDownNetwork(2, 5, 1).to(device)
+tickers = ['AAPL', 'MSFT', 'GOOGL', 'SPY']
+
+print('starting')
+batch_size = 50
+epochs = 500
+
+if not True:
+    epochs = 50
+    tickers = ['GOOGL']
+
+train_inp_len = 90
+inp_to_label_delay = 30
+features = 3
+
+X,Y = get_inp_data_tickers(train_inp_len, inp_to_label_delay, tickers)
+data_source = Data_obj(X,Y,(train_inp_len, features))
+
+#network = UpDownNetwork(2, 5, 1).to(device)
 #SimpleNetwork(2, 5, 1).to(device)
+network = ConvNetwork(train_inp_len, features, 5).to(device)
 
 
 #loss function
 #loss_func = nn.MSELoss()
-loss_func = nn.MSELoss()
+loss_func = nn.MSELoss().to(device)
 
-run_network(batch_size = 50, epochs = 1000, print_out = True)
+
+run_network(data_source, network, loss_func, batch_size = batch_size, epochs = epochs, learning_rate=0.001, print_out = False)
+
+visualize_test(network, data_source.loaders[2])
 

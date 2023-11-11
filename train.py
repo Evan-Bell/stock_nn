@@ -1,1 +1,0 @@
-run_network(batch_size = 50, epochs = 1000, print_out = True)

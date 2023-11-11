@@ -1,5 +1,4 @@
-import setup
-
+from setup import *
 
 def print_t(*args):
   out = []
@@ -16,7 +15,7 @@ def print_t(*args):
     print(i)
 
 
-def visualize_test(model, device, test_loader):
+def visualize_test(model, test_loader):
     '''
     Function for testing our models. One call to test() runs through every
     datapoint in our dataset once.
@@ -30,9 +29,6 @@ def visualize_test(model, device, test_loader):
     # set model to evaluation mode
     model.eval()
 
-    # we'll keep track of total loss to calculate the average later
-    test_loss = 0
-
     # don’t track gradients in testing, since no backprop
     with torch.no_grad():
         # iterate through each test image
@@ -45,7 +41,9 @@ def visualize_test(model, device, test_loader):
             # run input through our model
             output = model(input)
 
-            loss_function = torch.nn.MSELoss()
-            test_loss += loss_function(output,Y)
-            print_t(input,Y,output)
+            print(input)
+            com = torch.cat((Y,output), 1)
+            com = com.type(torch.double)
+            print(com)
+            return
 
