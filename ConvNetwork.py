@@ -2,24 +2,41 @@ from setup import *
 
 
 class ConvNetwork(nn.Module):
-    def __init__(self, train_len, features, representation_size = 10):
+    def __init__(self, train_len, num_in_features, num_out_features, representation_size = 10):
         super(ConvNetwork, self).__init__()
         self.representation_size = representation_size
         self.train_len = train_len
-        self.features = features
+        self.num_in_features = num_in_features
+        self.num_out_features = num_out_features
 
         # self.c = nn.Conv2d(1, representation_size, kernel_size = (5,3), padding=(1, 0)).double()
         # self.f = nn.ReLU()
         # self.z = nn.Linear(representation_size*train_len, 3).double()
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(1, representation_size, kernel_size = (features,features), padding=(1, 0)).double()
+            nn.Conv2d(1, representation_size, kernel_size = num_in_features, padding=(1, 0)).double()
             ,
             nn.ReLU()
         )
-
         self.lin_layers = nn.Sequential(
-            nn.Linear(representation_size*train_len, features).double()
+            nn.Flatten()
             ,
+            nn.Linear(representation_size*train_len, 100).double()
+            ,
+            nn.ReLU()
+            ,
+            nn.Linear(100, 100).double()
+            ,
+            nn.Sigmoid()
+            ,
+            nn.Linear(100, 100).double()
+            ,
+            nn.ReLU()
+            ,
+            nn.Linear(100, 100).double()
+            ,
+            nn.ReLU()
+            ,
+            nn.Linear(100, num_out_features).double()
         )
         
 
@@ -34,6 +51,5 @@ class ConvNetwork(nn.Module):
         x: a single batch of input data
         '''
         t = self.conv_layers(x)
-        t = t.view(-1, self.representation_size*self.train_len)
         t = self.lin_layers(t)
-        return t.view(-1, 1, t.shape[1])
+        return t.view(-1, 1, self.num_out_features)

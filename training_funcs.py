@@ -93,7 +93,7 @@ def test(model, test_loader, loss_func):
     test_loss /= len(test_loader)
     return test_loss.item()
 
-
+@timeit
 def run_network(data_source, network, loss_func, representation_size = 5, epochs = 200, batch_size = 50, learning_rate = 0.001, print_out=True, show_graph = True):
 
   #remake data into batches
@@ -107,22 +107,28 @@ def run_network(data_source, network, loss_func, representation_size = 5, epochs
   best_mse = np.inf   # init to infinity
   best_weights = None
   train_history = []
-  test_history = []
+  val_history = []
 
 
   for epoch in range(1, epochs+1):
       train_loss = train(network, train_loader, optimizer, loss_func = loss_func)
       val_loss = test(network, val_loader, loss_func = loss_func)
-      train_history.append(train_loss)
-      test_history.append(train_loss)
+      if show_graph:
+        train_history.append(train_loss)
+        val_history.append(val_loss)
       if val_loss < best_mse:
           best_mse = val_loss
           best_weights = copy.deepcopy(network.state_dict())
       
-      if epoch == 1 or epoch % 50 == 0:
+      if epoch == 1000:
+        optimizer = torch.optim.Adam(network.parameters(), lr=0.01)
+      if epoch == 1050:
+        optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate)
+      
+      if print_out and epoch == 1 or epoch % 50 == 0:
         print('Epoch: {:02} / {}  \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(epoch, epochs, train_loss, val_loss))
-      if epoch % 50 == 0 and print_out:
-        test_single_output(network, val_loader)
+      # if epoch % 50 == 0 and print_out:
+      #   test_single_output(network, val_loader)
 
   # restore model and return best accuracy
   network.load_state_dict(best_weights)
@@ -130,6 +136,8 @@ def run_network(data_source, network, loss_func, representation_size = 5, epochs
   if print_out:
     print("MSE: %.2f" % best_mse)
     print("RMSE: %.2f" % np.sqrt(best_mse))
+    test_loss = test(network, test_loader, loss_func = loss_func)
+    print('TESTING LOSS: ', test_loss)
 
   if show_graph:
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))  # Adjust the figure size as needed
@@ -139,12 +147,13 @@ def run_network(data_source, network, loss_func, representation_size = 5, epochs
     ax1.set_title('Train loss')  # Set a title for the first plot
 
     # Plot the data in the second subplot
-    ax2.plot(test_history)
-    ax2.set_title('Test loss')  # Set a title for the second plot
+    ax2.plot(val_history)
+    ax2.set_title('Validation loss')  # Set a title for the second plot
 
     # Adjust spacing between subplots
     plt.tight_layout()
 
     # Show the plots side by side
     plt.show()
-  return test(network, test_loader, loss_func = loss_func)
+  
+  return network

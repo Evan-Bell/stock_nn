@@ -35,50 +35,75 @@ from setup import *
 #msft.earnings_dates
 # see `Ticker.get_income_stmt()` for more options
 
-def get_inp_data_tickers(train_dist, label_delay, tickers = ['AAPL']):
-  X = np.zeros((1, train_dist, 3))
-  Y = np.zeros((1, 1, 3))
+def get_inp_data_tickers(train_dist, label_delay, n_inputs=2, n_outputs=1, tickers = ['AAPL']):
+  X = np.empty((0, train_dist, n_inputs))
+  Y = np.empty((0, 1, n_outputs))
+
+  total_points_in_data = 0
+
+  # torch.zeros(1, train_dist, n_inputs)
+  # torch.zeros(1, 1, n_outputs)
 
   for ticker in tickers:
     df = yf.download(ticker, period='max', threads=True)
-    vals = np.array(df[['Low', 'High', 'Open', 'Close', 'Adj Close']].values)
-    #print(vals)
-    adj = 100*(100*vals[:,4]-100*vals[:,3])/(100*vals[:,3])
-    change = 100*(100*vals[:,3]-100*vals[:,2])/(100*vals[:,2])
-    spread = 100*(100*vals[:,1]-100*vals[:,0])/(100*vals[:,0])
+    x = 100*np.array(df[['Low', 'High', 'Open', 'Close', "Volume", "Adj Close"]].values)
 
-    #FEATURES ARE
-    '''
-    adj -> % change in Adj Close over Close
-    change -> % change in Close over Open
-    spread -> % change in High over Low
-    '''
+    total_points_in_data += x.shape[0]
+    print(ticker, ": ", x.shape[0])
 
-
-
-    #print(adj.shape, change.shape, spread)
-    x = np.vstack((adj, change, spread)).T
-
-    #print(x.shape)
-    #print(x.shape, x)
-
-    samples = (x.shape[0] // (train_dist + label_delay))**2
+    samples = int((x.shape[0] // (train_dist + label_delay))**1.5)
+    #max(0, 2*(x.shape[0] - (train_dist + label_delay)) )
     
+    #temporary matrices to store this ticker batch of data
+    tX = np.zeros((samples, train_dist, n_inputs))
+    tY = np.zeros((samples, 1, n_outputs))
+
     for _ in range(samples):
       ind = random.randint(0, x.shape[0]-train_dist-label_delay-1)
-      sample = x[ind:ind+train_dist,:]
-      label = x[ind+train_dist+label_delay,:]
+      
+      sample = x[ind:ind+train_dist, :]
+      #FEATURES ARE
+      '''
+      adj -> digits of Volume (log 10)
+      change -> % change in Close over Open
+      spread -> % change in High over Low
+      '''
+      low = sample[:,0]
+      high = sample[:,1]
+      openn = sample[:,2]
+      close = sample[:,3]
+      volume = sample[:,4]
 
+      volume = np.where(volume > 0, 0.01*volume, 1)
+      adj = np.log10(volume)
+      change = 100*(close-openn)/openn
+      spread = 100*(high-low)/low
+
+
+      sample = np.vstack((adj, change, spread)).T
       sample = sample.reshape((1,sample.shape[0], sample.shape[1]))
-      label = label.reshape((1,1, label.shape[0]))
+      tX[_,:,:] = sample
 
-      #print(sample.shape, sample)
-      X = np.vstack([X, sample])
-      Y = np.vstack([Y, label])
+
+      label = 100*(x[ind+train_dist+label_delay,3] - x[ind+train_dist, 3]) / x[ind+train_dist, 3]
+      label = label.reshape((1,1,n_outputs))
+      tY[_,:,:] = label
+
+    X = np.vstack([X, tX])
+    Y = np.vstack([Y, tY])
 
   print('Fresh X: ', X.shape)
   print('Fresh Y: ', Y.shape)
+  print('Total points sampled: ', X.shape[0]*train_dist, ' / ', total_points_in_data)
+  print('Sample datapoint', X[X.shape[0]//2, :, :])
+  print( Y[X.shape[0]//2, :, :])
   return X, Y
-#get_inp_data()
+
+
+# start = datetime.now() 
+# get_inp_data_tickers(90,30, 3,1,['AAPL', 'MSFT', 'GOOGL', 'SPY', 'AMZN', 'ESGRP'])
+# end = datetime.now()
+# print(end - start)
+
 
 
